@@ -1,6 +1,5 @@
 # ✨ Full Stack Realtime Chat App ✨
 
-
 Highlights:
 
 - 🌟 Tech stack: MERN + Socket.io + TailwindCSS + Daisy UI
@@ -25,6 +24,28 @@ CLOUDINARY_API_SECRET=...
 
 NODE_ENV=development
 ```
+
+### Running the Backend
+
+Navigate to the backend folder and run:
+
+```shell
+npm install
+npm run dev
+```
+
+The backend will start on `http://localhost:5001`
+
+### Running the Frontend
+
+Navigate to the frontend folder and run:
+
+```shell
+npm install
+npm run dev
+```
+
+The frontend will start on `http://localhost:5173` (or as configured in your Vite setup)
 
 ### Build the app
 
