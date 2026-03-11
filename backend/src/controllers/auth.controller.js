@@ -2,7 +2,8 @@ import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js";
-import speak from "speakeasy";
+import speakeasy from "speakeasy";
+import QRCode from "qrcode";
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -12,7 +13,9 @@ export const signup = async (req, res) => {
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 6 characters" });
     }
 
     const user = await User.findOne({ email });
@@ -40,7 +43,7 @@ export const signup = async (req, res) => {
         profilePic: newUser.profilePic,
       });
     } else {
-      res.status(400).json({ message: "Invalid user data" }); 
+      res.status(400).json({ message: "Invalid user data" });
     }
   } catch (error) {
     console.log("Error in signup controller", error.message);
@@ -60,6 +63,14 @@ export const login = async (req, res) => {
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if (!isPasswordCorrect) {
       return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    if (user.isTwoFactorEnabled) {
+      return res.status(401).json({
+        requiresTwoFactor: true,
+        userId: user._id,
+        message: "Two-factor authentication required",
+      });
     }
 
     generateToken(user._id, res);
@@ -99,7 +110,7 @@ export const updateProfile = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { profilePic: uploadResponse.secure_url },
-      { new: true }
+      { new: true },
     );
 
     res.status(200).json(updatedUser);
@@ -120,21 +131,20 @@ export const checkAuth = (req, res) => {
 
 export const setupTwoFactor = async (req, res) => {
   try {
-    const userId = req.userId;
-   
+    const userId = req.user._id;
+
     const secret = speakeasy.generateSecret({
       name: `Chat App (${req.user.email})`,
-      issuer: "chat app"
-    })
-    
-    const qrCode = await qrCode.toDataURL(secret.otauth_url);
-    
+      issuer: "chat app",
+    });
+
+    const qrCodeImage = await QRCode.toDataURL(secret.otpauth_url);
+
     res.status(200).json({
       secret: secret.base32,
-      qrCode: qrCode,
-      message: "Scan the QR code to enable two-factor authentication"
+      qrCode: qrCodeImage,
+      message: "Scan the QR code to enable two-factor authentication",
     });
-    
   } catch (error) {
     console.log("Error in setupTwoFactor controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
@@ -143,28 +153,29 @@ export const setupTwoFactor = async (req, res) => {
 
 export const verifyTwoFactor = async (req, res) => {
   try {
-    const userId = req.userId;
+    const userId = req.user._id;
     const { secret, code } = req.body;
-    
+
     const verified = speakeasy.totp.verify({
       secret: secret,
       encoding: "base32",
       token: code,
       window: 2,
     });
-    
+
     if (!verified) {
       return res.status(401).json({ message: "Invalid code" });
     }
-    
-    const user = await User.findByIdUpdate(
-      userId, {
-      isTwoFactorSecret: secret,
-      isTwoFactorEnabled: true,
-    },
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        isTwoFactorSecret: secret,
+        isTwoFactorEnabled: true,
+      },
       {
         new: true,
-      }
+      },
     );
     res.status(200).json({ message: "Two-factor authentication enabled" });
   } catch (error) {
@@ -174,9 +185,55 @@ export const verifyTwoFactor = async (req, res) => {
 };
 
 export const disableTwoFactor = async (req, res) => {
-  
+  try {
+    const userId = req.user._id;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        isTwoFactorEnabled: false,
+        isTwoFactorSecret: null,
+      },
+      { new: true },
+    );
+
+    res.status(200).json({ message: "two factor auth disabled" });
+  } catch (error) {
+    console.log("error in disabling ", error.message);
+    res.status(500).json({ message: "internal server error" });
+  }
 };
 
 export const loginWithTwoFactor = async (req, res) => {
-  
+  try {
+    const { userId, code } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user || !user.isTwoFactorEnabled) {
+      return res.status(400).json({ message: "2fa is not enabled" });
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: user.isTwoFactorSecret,
+      encoding: "base32",
+      token: code,
+      window: 2,
+    });
+
+    if (!verified) {
+      return res.status(400).json({ message: "invalid 2fa code" });
+    }
+    generateToken(user._id, res);
+
+    res.status(200).json({
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      profilePic: user.profilePic,
+    });
+  } catch (error) {
+    console.log("error in loginwithtwofactor", error.message);
+    res.status(500).json({ message: "interanl server error" });
+  }
 };
