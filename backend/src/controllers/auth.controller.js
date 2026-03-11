@@ -40,7 +40,7 @@ export const signup = async (req, res) => {
         profilePic: newUser.profilePic,
       });
     } else {
-      res.status(400).json({ message: "Invalid user data" });
+      res.status(400).json({ message: "Invalid user data" }); 
     }
   } catch (error) {
     console.log("Error in signup controller", error.message);
@@ -142,7 +142,35 @@ export const setupTwoFactor = async (req, res) => {
 };
 
 export const verifyTwoFactor = async (req, res) => {
-  
+  try {
+    const userId = req.userId;
+    const { secret, code } = req.body;
+    
+    const verified = speakeasy.totp.verify({
+      secret: secret,
+      encoding: "base32",
+      token: code,
+      window: 2,
+    });
+    
+    if (!verified) {
+      return res.status(401).json({ message: "Invalid code" });
+    }
+    
+    const user = await User.findByIdUpdate(
+      userId, {
+      isTwoFactorSecret: secret,
+      isTwoFactorEnabled: true,
+    },
+      {
+        new: true,
+      }
+    );
+    res.status(200).json({ message: "Two-factor authentication enabled" });
+  } catch (error) {
+    console.log("Error in verifyTwoFactor controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
 };
 
 export const disableTwoFactor = async (req, res) => {
