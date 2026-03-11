@@ -3,7 +3,8 @@ import { axiosInstance } from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 
-const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
+const BASE_URL =
+  import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
@@ -13,6 +14,8 @@ export const useAuthStore = create((set, get) => ({
   isCheckingAuth: true,
   onlineUsers: [],
   socket: null,
+  require2FA: false,
+  temp2FAUserId: null,
 
   checkAuth: async () => {
     try {
@@ -51,6 +54,14 @@ export const useAuthStore = create((set, get) => ({
 
       get().connectSocket();
     } catch (error) {
+      if (error.response?.data?.requiresTwoFactor) {
+        set({
+          require2FA: true,
+          temp2FAUserId: error.response.data.userId,
+        });
+        toast.success("Please enter your 2FA code");
+        return;
+      }
       toast.error(error.response.data.message);
     } finally {
       set({ isLoggingIn: false });
@@ -79,6 +90,55 @@ export const useAuthStore = create((set, get) => ({
       toast.error(error.response.data.message);
     } finally {
       set({ isUpdatingProfile: false });
+    }
+  },
+
+  loginWith2FA: async (userId, code) => {
+    set({ isLoggingIn: true });
+    try {
+      const res = await axiosInstance.post("/auth/login-2fa", {
+        userId,
+        code,
+      });
+      set({ authUser: res.data, require2FA: false, temp2FAUserId: null });
+      toast.success("Logged in successfully");
+      get().connectSocket();
+    } catch (error) {
+      toast.error(error.response.data.message);
+    } finally {
+      set({ isLoggingIn: false });
+    }
+  },
+
+  setup2FA: async () => {
+    try {
+      const res = await axiosInstance.post("/auth/2fa/setup");
+      return res.data;
+    } catch (error) {
+      toast.error(error.response.data.message);
+    }
+  },
+
+  verify2FA: async (secret, code) => {
+    try {
+      await axiosInstance.post("/auth/2fa/verify", {
+        secret,
+        code,
+      });
+      set({ authUser: { ...get().authUser, isTwoFactorEnabled: true } });
+      toast.success("Two-factor authentication enabled");
+    } catch (error) {
+      toast.error(error.response.data.message);
+    }
+  },
+
+  disable2FA: async () => {
+    try {
+      await axiosInstance.post("/auth/2fa/disable");
+      set({ authUser: { ...get().authUser, isTwoFactorEnabled: false } });
+      toast.success("Two-factor authentication disabled");
+    } catch (error) {
+      toast.error(error.response.data.message);
     }
   },
 
