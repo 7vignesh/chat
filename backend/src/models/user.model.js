@@ -20,6 +20,17 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    isTwoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    isTwoFactorSecret: {
+      type: String
+    },
+    twoFactorBackupCodes: {
+      type: [String],
+      default: [],
+    }
   },
   { timestamps: true }
 );

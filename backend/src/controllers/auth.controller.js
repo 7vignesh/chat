@@ -2,6 +2,7 @@ import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js";
+import speak from "speakeasy";
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -115,4 +116,39 @@ export const checkAuth = (req, res) => {
     console.log("Error in checkAuth controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
+};
+
+export const setupTwoFactor = async (req, res) => {
+  try {
+    const userId = req.userId;
+   
+    const secret = speakeasy.generateSecret({
+      name: `Chat App (${req.user.email})`,
+      issuer: "chat app"
+    })
+    
+    const qrCode = await qrCode.toDataURL(secret.otauth_url);
+    
+    res.status(200).json({
+      secret: secret.base32,
+      qrCode: qrCode,
+      message: "Scan the QR code to enable two-factor authentication"
+    });
+    
+  } catch (error) {
+    console.log("Error in setupTwoFactor controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const verifyTwoFactor = async (req, res) => {
+  
+};
+
+export const disableTwoFactor = async (req, res) => {
+  
+};
+
+export const loginWithTwoFactor = async (req, res) => {
+  
 };
