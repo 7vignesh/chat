@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { axiosInstance } from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
+import { getErrorMessage } from "../lib/utils.js";
 
 const BASE_URL =
   import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
@@ -39,7 +40,7 @@ export const useAuthStore = create((set, get) => ({
       toast.success("Account created successfully");
       get().connectSocket();
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(getErrorMessage(error));
     } finally {
       set({ isSigningUp: false });
     }
@@ -62,7 +63,7 @@ export const useAuthStore = create((set, get) => ({
         toast.success("Please enter your 2FA code");
         return;
       }
-      toast.error(error.response.data.message);
+      toast.error(getErrorMessage(error));
     } finally {
       set({ isLoggingIn: false });
     }
@@ -75,7 +76,7 @@ export const useAuthStore = create((set, get) => ({
       toast.success("Logged out successfully");
       get().disconnectSocket();
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(getErrorMessage(error));
     }
   },
 
@@ -87,7 +88,7 @@ export const useAuthStore = create((set, get) => ({
       toast.success("Profile updated successfully");
     } catch (error) {
       console.log("error in update profile:", error);
-      toast.error(error.response.data.message);
+      toast.error(getErrorMessage(error));
     } finally {
       set({ isUpdatingProfile: false });
     }
@@ -104,7 +105,7 @@ export const useAuthStore = create((set, get) => ({
       toast.success("Logged in successfully");
       get().connectSocket();
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(getErrorMessage(error));
     } finally {
       set({ isLoggingIn: false });
     }
@@ -115,7 +116,7 @@ export const useAuthStore = create((set, get) => ({
       const res = await axiosInstance.post("/auth/2fa/setup");
       return res.data;
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(getErrorMessage(error));
     }
   },
 
@@ -128,7 +129,7 @@ export const useAuthStore = create((set, get) => ({
       set({ authUser: { ...get().authUser, isTwoFactorEnabled: true } });
       toast.success("Two-factor authentication enabled");
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(getErrorMessage(error));
     }
   },
 
@@ -138,7 +139,7 @@ export const useAuthStore = create((set, get) => ({
       set({ authUser: { ...get().authUser, isTwoFactorEnabled: false } });
       toast.success("Two-factor authentication disabled");
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(getErrorMessage(error));
     }
   },
 

@@ -5,3 +5,7 @@ export function formatMessageTime(date) {
     hour12: false,
   });
 }
+
+export function getErrorMessage(error, fallback = "Something went wrong") {
+  return error?.response?.data?.message || error?.message || fallback;
+}
