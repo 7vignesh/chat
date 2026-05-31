@@ -1,0 +1,4 @@
+# Force LF line endings for files that run on the Linux server.
+# Without this, Windows CRLF endings break shell script shebangs and nginx configs.
+*.sh text eol=lf
+deploy/nginx.conf text eol=lf
