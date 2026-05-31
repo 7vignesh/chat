@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 
 import path from "path";
+import { fileURLToPath } from "url";
 
 import { connectDB } from "./lib/db.js";
 
@@ -20,9 +21,14 @@ dotenv.config();
 
 const PORT = process.env.PORT || 5001;
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
-const __dirname = path.resolve();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-app.use(express.json());
+// Trust the first proxy (AWS ALB / CloudFront / Nginx) so secure cookies and
+// req.protocol work correctly when TLS is terminated upstream.
+app.set("trust proxy", 1);
+
+app.use(express.json({ limit: "5mb" }));
+app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 app.use(cookieParser());
 app.use(
   cors({
@@ -54,10 +60,11 @@ const startServer = async () => {
   });
 
   if (process.env.NODE_ENV === "production") {
-    app.use(express.static(path.join(__dirname, "../frontend/dist")));
+    const frontendDist = path.join(__dirname, "../../frontend/dist");
+    app.use(express.static(frontendDist));
 
     app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
+      res.sendFile(path.join(frontendDist, "index.html"));
     });
   }
 
