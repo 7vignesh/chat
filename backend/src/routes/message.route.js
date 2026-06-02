@@ -4,9 +4,18 @@ import { getMessages, getUsersForSidebar, sendMessage } from "../controllers/mes
 
 const router = express.Router();
 
-router.get("/users", protectRoute, getUsersForSidebar);
-router.get("/:id", protectRoute, getMessages);
+// Validate that :id is a valid MongoDB ObjectId format
+const validateObjectId = (req, res, next) => {
+  const { id } = req.params;
+  if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+    return res.status(400).json({ error: "Invalid user ID format" });
+  }
+  next();
+};
 
-router.post("/send/:id", protectRoute, sendMessage);
+router.get("/users", protectRoute, getUsersForSidebar);
+router.get("/:id", protectRoute, validateObjectId, getMessages);
+
+router.post("/send/:id", protectRoute, validateObjectId, sendMessage);
 
 export default router;
