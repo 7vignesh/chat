@@ -10,6 +10,8 @@ export const useChatStore = create((set, get) => ({
   selectedUser: null,
   isUsersLoading: false,
   isMessagesLoading: false,
+  pagination: null,
+  isLoadingMore: false,
 
   getUsers: async () => {
     set({ isUsersLoading: true });
@@ -26,14 +28,35 @@ export const useChatStore = create((set, get) => ({
   getMessages: async (userId) => {
     set({ isMessagesLoading: true });
     try {
-      const res = await axiosInstance.get(`/messages/${userId}`);
-      set({ messages: res.data });
+      const res = await axiosInstance.get(`/messages/${userId}?page=1&limit=50`);
+      set({ messages: res.data.messages, pagination: res.data.pagination });
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
       set({ isMessagesLoading: false });
     }
   },
+
+  loadMoreMessages: async (userId) => {
+    const { pagination, messages } = get();
+    if (!pagination || pagination.page >= pagination.pages) return;
+
+    set({ isLoadingMore: true });
+    try {
+      const nextPage = pagination.page + 1;
+      const res = await axiosInstance.get(`/messages/${userId}?page=${nextPage}&limit=${pagination.limit}`);
+      // Prepend older messages before the current ones
+      set({
+        messages: [...res.data.messages, ...messages],
+        pagination: res.data.pagination,
+      });
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      set({ isLoadingMore: false });
+    }
+  },
+
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get();
     try {

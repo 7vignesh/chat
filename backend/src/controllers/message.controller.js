@@ -21,14 +21,35 @@ export const getMessages = async (req, res) => {
     const { id: userToChatId } = req.params;
     const myId = req.user._id;
 
-    const messages = await Message.find({
+    // Pagination: clients can pass ?page=1&limit=50 (defaults to last 50 messages)
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+    const skip = (page - 1) * limit;
+
+    const query = {
       $or: [
         { senderId: myId, receiverId: userToChatId },
         { senderId: userToChatId, receiverId: myId },
       ],
-    }).sort({ createdAt: 1 });
+    };
 
-    res.status(200).json(messages);
+    const [messages, total] = await Promise.all([
+      Message.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Message.countDocuments(query),
+    ]);
+
+    // Return messages in chronological order (oldest first) for the UI
+    messages.reverse();
+
+    res.status(200).json({
+      messages,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.log("Error in getMessages controller: ", error.message);
     res.status(500).json({ error: "Internal server error" });
